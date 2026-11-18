@@ -1,2 +1,2 @@
-# SHAUNA-LANE-NEW-6
-SHAUNA LANE NEW 6
+# shauna-lane-project
+Private repository for shauna lane project

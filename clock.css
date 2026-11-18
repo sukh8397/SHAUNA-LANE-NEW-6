@@ -1,0 +1,12 @@
+.world-clock{padding:clamp(54px,7vw,88px) 5vw;background:var(--paper-2)}
+.clock-heading{max-width:620px;margin:0 auto 30px;text-align:center}
+.clock-heading .eyebrow{margin-bottom:12px}
+.clock-heading h2{font:700 clamp(38px,5vw,62px)/1 Gelasio,serif;letter-spacing:-.07em;margin:0 0 12px}
+.clock-heading h2 em{color:var(--blue);font-weight:600}
+.clock-heading p{font-size:13px;line-height:1.7;color:var(--muted);margin:0}
+.clock-grid{width:min(1100px,100%);margin:0 auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+.clock-card{padding:22px 18px;background:var(--card);border:1px solid var(--line);text-align:center;box-shadow:0 10px 28px rgba(90,45,20,.06)}
+.clock-city{display:block;color:var(--blue);font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-bottom:12px}
+.clock-time{display:block;font:700 clamp(25px,3vw,38px)/1.1 Gelasio,serif;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.clock-date{display:block;margin-top:8px;color:var(--muted);font-size:11px}
+@media(max-width:760px){.world-clock{padding:54px 5vw}.clock-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.clock-card{padding:18px 10px}.clock-time{font-size:clamp(24px,7vw,34px)}}
