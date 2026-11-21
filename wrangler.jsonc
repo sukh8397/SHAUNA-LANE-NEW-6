@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "shauna-lane-new-6",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-20",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  }
+}
