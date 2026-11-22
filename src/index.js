@@ -13,8 +13,8 @@ export default {
 
     // 1. Terra Cotta Tutoring Domain
     if (isTutoringDomain) {
-      // Map root "/" and "/index.html" to "tutoring.html"
-      if (url.pathname === "/" || url.pathname === "/index.html") {
+      // Map root "/" to "tutoring.html"
+      if (url.pathname === "/") {
         const rewritten = new URL(request.url);
         rewritten.pathname = "/tutoring.html";
         return env.ASSETS.fetch(new Request(rewritten, request));
@@ -23,6 +23,11 @@ export default {
       // Canonical redirect: /tutoring.html -> /
       if (url.pathname === "/tutoring.html") {
         return Response.redirect(`${url.protocol}//${host}/`, 301);
+      }
+
+      // If /index.html is accessed on tutoring domain, redirect to shaunalane.com
+      if (url.pathname === "/index.html") {
+        return Response.redirect("https://shaunalane.com/", 301);
       }
 
       // If entertainment pages are accessed on tutoring domain, redirect to shaunalane.com
