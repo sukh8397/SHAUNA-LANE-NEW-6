@@ -189,7 +189,8 @@
     if (track && prevBtn && nextBtn) {
       const getScrollAmount = () => {
         const card = track.querySelector('.t3d-card:not(.hidden)');
-        return card ? card.offsetWidth + 24 : 360;
+        const step = card ? card.offsetWidth + 12 : 240;
+        return window.innerWidth < 680 ? step * 2 : step;
       };
 
       prevBtn.addEventListener('click', () => {
@@ -222,17 +223,24 @@
       });
     }
 
-    // 3D interactive tilt effect on mouse movement over cards
+    // Toggle card expansion on tap/click to read full quote if clamped
     cards.forEach(card => {
+      card.addEventListener('click', (e) => {
+        // Prevent toggle if text selection
+        if (window.getSelection && window.getSelection().toString().length > 0) return;
+        card.classList.toggle('expanded');
+      });
+
       card.addEventListener('mousemove', (e) => {
+        if (card.classList.contains('expanded')) return;
         const rect = card.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
-        const rotateX = ((y - centerY) / centerY) * -6;
-        const rotateY = ((x - centerX) / centerX) * 6;
-        card.style.transform = `perspective(1000px) translateY(-8px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1.02, 1.02, 1.02)`;
+        const rotateX = ((y - centerY) / centerY) * -5;
+        const rotateY = ((x - centerX) / centerX) * 5;
+        card.style.transform = `perspective(1000px) translateY(-5px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1.02, 1.02, 1.02)`;
       });
       card.addEventListener('mouseleave', () => {
         card.style.transform = '';
