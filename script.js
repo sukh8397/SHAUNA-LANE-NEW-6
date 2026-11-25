@@ -174,3 +174,69 @@
     }
   });
 })();
+
+// ==========================================================================
+// 3D SCROLL TESTIMONIALS CONTROLLER (ARROWS, FILTERS & 3D TILT)
+// ==========================================================================
+(() => {
+  document.querySelectorAll('.t3d-section').forEach(section => {
+    const track = section.querySelector('.t3d-track');
+    const prevBtn = section.querySelector('.t3d-arrow.prev');
+    const nextBtn = section.querySelector('.t3d-arrow.next');
+    const filterBtns = section.querySelectorAll('.t3d-filter-btn');
+    const cards = section.querySelectorAll('.t3d-card');
+
+    if (track && prevBtn && nextBtn) {
+      const getScrollAmount = () => {
+        const card = track.querySelector('.t3d-card:not(.hidden)');
+        return card ? card.offsetWidth + 24 : 360;
+      };
+
+      prevBtn.addEventListener('click', () => {
+        track.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
+      });
+
+      nextBtn.addEventListener('click', () => {
+        track.scrollBy({ left: getScrollAmount(), behavior: 'smooth' });
+      });
+    }
+
+    if (filterBtns.length > 0 && cards.length > 0) {
+      filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          filterBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const filter = btn.getAttribute('data-filter') || 'all';
+
+          cards.forEach(card => {
+            const cat = card.getAttribute('data-category') || '';
+            if (filter === 'all' || cat === filter || (filter === 'entertainment' && (cat === 'comedy' || cat === 'film' || cat === 'spark'))) {
+              card.classList.remove('hidden');
+            } else {
+              card.classList.add('hidden');
+            }
+          });
+
+          if (track) track.scrollTo({ left: 0, behavior: 'smooth' });
+        });
+      });
+    }
+
+    // 3D interactive tilt effect on mouse movement over cards
+    cards.forEach(card => {
+      card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const rotateX = ((y - centerY) / centerY) * -6;
+        const rotateY = ((x - centerX) / centerX) * 6;
+        card.style.transform = `perspective(1000px) translateY(-8px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1.02, 1.02, 1.02)`;
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = '';
+      });
+    });
+  });
+})();
