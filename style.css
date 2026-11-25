@@ -378,19 +378,13 @@ footer>a:last-child{font-size:10px;font-weight:800;color:var(--blue);text-align:
   scroll-behavior: smooth;
   padding: 6px 4px 14px;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--orange) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 .t3d-track::-webkit-scrollbar {
-  height: 4px;
-}
-.t3d-track::-webkit-scrollbar-track {
-  background: rgba(43,31,26,0.06);
-  border-radius: 2px;
-}
-.t3d-track::-webkit-scrollbar-thumb {
-  background: var(--orange);
-  border-radius: 2px;
+  display: none;
+  width: 0;
+  height: 0;
 }
 .t3d-card {
   flex: 0 0 270px;

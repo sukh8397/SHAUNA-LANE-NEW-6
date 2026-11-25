@@ -176,7 +176,7 @@
 })();
 
 // ==========================================================================
-// 3D SCROLL TESTIMONIALS CONTROLLER (ARROWS, FILTERS & 3D TILT)
+// 3D SCROLL TESTIMONIALS CONTROLLER (AUTO-ROTATING, ARROWS, FILTERS & 3D TILT)
 // ==========================================================================
 (() => {
   document.querySelectorAll('.t3d-section').forEach(section => {
@@ -186,21 +186,96 @@
     const filterBtns = section.querySelectorAll('.t3d-filter-btn');
     const cards = section.querySelectorAll('.t3d-card');
 
-    if (track && prevBtn && nextBtn) {
-      const getScrollAmount = () => {
-        const card = track.querySelector('.t3d-card:not(.hidden)');
-        const step = card ? card.offsetWidth + 12 : 240;
-        return window.innerWidth < 680 ? step * 2 : step;
-      };
+    if (!track) return;
 
+    const getScrollAmount = () => {
+      const card = track.querySelector('.t3d-card:not(.hidden)');
+      const step = card ? card.offsetWidth + 12 : 240;
+      return window.innerWidth < 680 ? step * 2 : step;
+    };
+
+    let isPaused = false;
+    let autoScrollInterval = null;
+    let pauseTimer = null;
+
+    const advance = (dir = 1) => {
+      const step = getScrollAmount();
+      const maxScroll = track.scrollWidth - track.clientWidth;
+      if (maxScroll <= 5) return;
+
+      if (dir > 0) {
+        if (track.scrollLeft >= maxScroll - 16) {
+          track.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          track.scrollBy({ left: step, behavior: 'smooth' });
+        }
+      } else {
+        if (track.scrollLeft <= 16) {
+          track.scrollTo({ left: maxScroll, behavior: 'smooth' });
+        } else {
+          track.scrollBy({ left: -step, behavior: 'smooth' });
+        }
+      }
+    };
+
+    const startAutoScroll = () => {
+      stopAutoScroll();
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      autoScrollInterval = setInterval(() => {
+        if (isPaused) return;
+        if (section.offsetParent === null) return;
+        if (section.querySelector('.t3d-card.expanded')) return;
+        advance(1);
+      }, 3500);
+    };
+
+    const stopAutoScroll = () => {
+      if (autoScrollInterval) {
+        clearInterval(autoScrollInterval);
+        autoScrollInterval = null;
+      }
+    };
+
+    const pauseTemporarily = (duration = 4500) => {
+      isPaused = true;
+      if (pauseTimer) clearTimeout(pauseTimer);
+      pauseTimer = setTimeout(() => {
+        isPaused = false;
+      }, duration);
+    };
+
+    if (prevBtn) {
       prevBtn.addEventListener('click', () => {
-        track.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
-      });
-
-      nextBtn.addEventListener('click', () => {
-        track.scrollBy({ left: getScrollAmount(), behavior: 'smooth' });
+        advance(-1);
+        pauseTemporarily(5000);
       });
     }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        advance(1);
+        pauseTemporarily(5000);
+      });
+    }
+
+    // Pause on hover
+    section.addEventListener('mouseenter', () => { isPaused = true; });
+    section.addEventListener('mouseleave', () => { isPaused = false; });
+
+    // Touch interaction for mobile
+    track.addEventListener('touchstart', () => { isPaused = true; }, { passive: true });
+    track.addEventListener('touchend', () => { pauseTemporarily(4000); }, { passive: true });
+
+    // Page visibility
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopAutoScroll();
+      } else {
+        startAutoScroll();
+      }
+    });
+
+    startAutoScroll();
 
     if (filterBtns.length > 0 && cards.length > 0) {
       filterBtns.forEach(btn => {
@@ -218,7 +293,8 @@
             }
           });
 
-          if (track) track.scrollTo({ left: 0, behavior: 'smooth' });
+          track.scrollTo({ left: 0, behavior: 'smooth' });
+          pauseTemporarily(3000);
         });
       });
     }
@@ -226,9 +302,13 @@
     // Toggle card expansion on tap/click to read full quote if clamped
     cards.forEach(card => {
       card.addEventListener('click', (e) => {
-        // Prevent toggle if text selection
         if (window.getSelection && window.getSelection().toString().length > 0) return;
         card.classList.toggle('expanded');
+        if (card.classList.contains('expanded')) {
+          isPaused = true;
+        } else {
+          pauseTemporarily(3000);
+        }
       });
 
       card.addEventListener('mousemove', (e) => {
