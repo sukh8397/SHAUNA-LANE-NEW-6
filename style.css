@@ -230,6 +230,11 @@ footer>a:last-child{font-size:10px;font-weight:800;color:var(--blue);text-align:
   object-fit: cover;
   object-position: center top;
 }
+.charlie-photo-grid .content-card img.charlie-art-img {
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: center center;
+}
 .charlie-photo-grid .content-card:hover img {
   transform: scale(1.04);
 }
@@ -275,6 +280,12 @@ footer>a:last-child{font-size:10px;font-weight:800;color:var(--blue);text-align:
     max-height: none !important;
     object-fit: cover !important;
     object-position: center top !important;
+  }
+  .charlie-photo-grid .content-card img.charlie-art-img {
+    aspect-ratio: 1 / 1 !important;
+    height: auto !important;
+    max-height: none !important;
+    object-fit: cover !important;
   }
   .charlie-photo-grid .content-card img.charlie-kitchen-img {
     aspect-ratio: 1400 / 934 !important;
