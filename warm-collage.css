@@ -129,13 +129,7 @@ body[data-home-version="classic"] .version-pill-header .dot {
   max-width: 94vw;
 }
 .version-switcher-label {
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 0 10px 0 14px;
-  white-space: nowrap;
+  display: none !important;
 }
 .version-btn {
   border: 0;

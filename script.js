@@ -131,45 +131,83 @@
     }
   }
 
-  // Interactive Video Clip Modal for Homepage Thumbnails & Showreel
-  const videoModal = document.getElementById('wcVideoModal');
-  const videoPlayer = document.getElementById('wcModalVideoPlayer');
-  const videoTitle = document.getElementById('wcModalVideoTitle');
-  const videoClose = document.getElementById('wcModalVideoClose');
-
-  const closeVideoModal = () => {
-    if (!videoModal) return;
-    videoModal.hidden = true;
-    if (videoPlayer) {
-      videoPlayer.pause();
-      videoPlayer.removeAttribute('src');
-      videoPlayer.load();
+  // Universal Video Lightbox Modal (YouTube & HTML5 Video)
+  function closeVideoModal() {
+    const modal = document.getElementById('siteVideoModal');
+    if (modal) {
+      modal.hidden = true;
+      const container = modal.querySelector('#siteVideoContainer');
+      if (container) container.innerHTML = '';
+      document.body.style.overflow = '';
     }
-  };
+    const wcModal = document.getElementById('wcVideoModal');
+    if (wcModal) {
+      wcModal.hidden = true;
+      const wcPlayer = document.getElementById('wcModalVideoPlayer');
+      if (wcPlayer) {
+        wcPlayer.pause();
+        wcPlayer.removeAttribute('src');
+        wcPlayer.load();
+      }
+    }
+  }
 
-  document.querySelectorAll('[data-video-src]').forEach(trigger => {
-    trigger.addEventListener('click', (e) => {
+  function openVideoModal({ ytId, videoSrc, poster, title }) {
+    let modal = document.getElementById('siteVideoModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'siteVideoModal';
+      modal.className = 'site-video-modal';
+      modal.innerHTML = `
+        <div class="site-video-dialog" role="dialog" aria-modal="true">
+          <div class="site-video-header">
+            <h4 id="siteVideoTitle">Video Preview</h4>
+            <button type="button" class="site-video-close" aria-label="Close video">✕</button>
+          </div>
+          <div class="site-video-frame-wrap" id="siteVideoContainer"></div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      modal.querySelector('.site-video-close').addEventListener('click', closeVideoModal);
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeVideoModal();
+      });
+    }
+
+    const titleEl = modal.querySelector('#siteVideoTitle');
+    const container = modal.querySelector('#siteVideoContainer');
+    if (titleEl) titleEl.textContent = title || 'Video Preview';
+
+    if (ytId) {
+      container.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&playsinline=1" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+    } else if (videoSrc) {
+      container.innerHTML = `<video src="${videoSrc}" ${poster ? `poster="${poster}"` : ''} controls autoplay playsinline style="width:100%;height:100%;object-fit:contain;background:#000"></video>`;
+    }
+
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+
+  document.addEventListener('click', (e) => {
+    // Allow external YouTube link to open in new tab directly
+    if (e.target.closest('.video-yt-link')) return;
+
+    const trigger = e.target.closest('[data-yt-id], [data-video-src]');
+    if (trigger) {
       e.preventDefault();
-      if (!videoModal || !videoPlayer) return;
-      const src = trigger.getAttribute('data-video-src');
-      const poster = trigger.getAttribute('data-video-poster') || '';
-      const title = trigger.getAttribute('data-video-title') || 'Selected Clip';
-      if (videoTitle) videoTitle.textContent = title;
-      if (poster) videoPlayer.setAttribute('poster', poster);
-      videoPlayer.setAttribute('src', src);
-      videoModal.hidden = false;
-      videoPlayer.play().catch(() => {});
-    });
+      const ytId = trigger.getAttribute('data-yt-id');
+      const videoSrc = trigger.getAttribute('data-video-src');
+      const poster = trigger.getAttribute('data-video-poster');
+      const title = trigger.getAttribute('data-video-title');
+      openVideoModal({ ytId, videoSrc, poster, title });
+    }
   });
 
-  if (videoClose) videoClose.addEventListener('click', closeVideoModal);
-  if (videoModal) {
-    videoModal.addEventListener('click', (e) => {
-      if (e.target === videoModal) closeVideoModal();
-    });
-  }
+  const wcClose = document.getElementById('wcModalVideoClose');
+  if (wcClose) wcClose.addEventListener('click', closeVideoModal);
+
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && videoModal && !videoModal.hidden) {
+    if (e.key === 'Escape') {
       closeVideoModal();
     }
   });
