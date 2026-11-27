@@ -1,3 +1,13 @@
+// Security: Authorized administrator emails
+const ALLOWED_EMAILS = [
+  "shaunalaneproductions@gmail.com",
+  "sukhhari01@gmail.com"
+];
+
+// OTP & PIN state
+const otpStore = new Map();
+let currentCustomPin = null;
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -8,12 +18,13 @@ export default {
       return Response.redirect(`${url.protocol}//${host}/?edit=1`, 302);
     }
 
+    // A. Verify PIN
     if (url.pathname === "/api/admin/auth") {
       if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
       try {
         const body = await request.json();
         const pin = (body.pin || "").trim();
-        const validPin = env.ADMIN_PIN || "2026";
+        const validPin = currentCustomPin || env.ADMIN_PIN || "2026";
         if (pin === validPin) {
           return new Response(JSON.stringify({ success: true, message: "Authorized" }), {
             headers: { "Content-Type": "application/json" }
@@ -31,12 +42,144 @@ export default {
       }
     }
 
+    // B. Send OTP to Authorized Email
+    if (url.pathname === "/api/admin/send-otp") {
+      if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+      try {
+        const body = await request.json();
+        const email = (body.email || "").toLowerCase().trim();
+
+        if (!ALLOWED_EMAILS.includes(email)) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: "This email is not authorized as an administrator for this website."
+          }), {
+            status: 403,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+
+        // Generate 6-digit cryptographic random OTP
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        otpStore.set(email, { code, expires: Date.now() + 10 * 60 * 1000 }); // 10 minutes expiry
+
+        // Send via Resend or Email API if configured
+        if (env.RESEND_API_KEY) {
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${env.RESEND_API_KEY}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              from: "Shauna Lane Website <security@shaunalane.com>",
+              to: email,
+              subject: "Your Shauna Lane Website Login Code",
+              html: `<p>Hi Shauna,</p><p>Your 6-digit security code to edit your website is:</p><h2 style="font-size:32px;letter-spacing:0.2em;color:#181512">${code}</h2><p>This code expires in 10 minutes.</p>`
+            })
+          });
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: `6-digit security code sent to ${email}!`
+        }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    }
+
+    // C. Verify OTP
+    if (url.pathname === "/api/admin/verify-otp") {
+      if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+      try {
+        const body = await request.json();
+        const email = (body.email || "").toLowerCase().trim();
+        const code = (body.code || "").trim();
+
+        const record = otpStore.get(email);
+        if (!record || Date.now() > record.expires) {
+          return new Response(JSON.stringify({ success: false, error: "Code expired or not found. Please request a new code." }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+
+        if (record.code !== code) {
+          return new Response(JSON.stringify({ success: false, error: "Invalid verification code. Please check your inbox." }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+
+        otpStore.delete(email);
+        return new Response(JSON.stringify({ success: true, message: "Verified successfully!" }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    }
+
+    // D. Reset PIN
+    if (url.pathname === "/api/admin/reset-pin") {
+      if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+      try {
+        const body = await request.json();
+        const email = (body.email || "").toLowerCase().trim();
+        const code = (body.code || "").trim();
+        const newPin = (body.newPin || "").trim();
+
+        const record = otpStore.get(email);
+        if (!record || Date.now() > record.expires) {
+          return new Response(JSON.stringify({ success: false, error: "Code expired. Please request a new code." }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+
+        if (record.code !== code) {
+          return new Response(JSON.stringify({ success: false, error: "Invalid verification code." }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+
+        if (newPin.length < 4) {
+          return new Response(JSON.stringify({ success: false, error: "PIN must be at least 4 digits." }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+
+        currentCustomPin = newPin;
+        otpStore.delete(email);
+
+        return new Response(JSON.stringify({ success: true, message: "PIN updated successfully!" }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    }
+
     if (url.pathname === "/api/admin/save") {
       if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
       try {
         const body = await request.json();
         const { pin, path, content, images, githubToken } = body;
-        const validPin = env.ADMIN_PIN || "2026";
+        const validPin = currentCustomPin || env.ADMIN_PIN || "2026";
         if ((pin || "").trim() !== validPin) {
           return new Response(JSON.stringify({ success: false, error: "Unauthorized PIN" }), {
             status: 401,
