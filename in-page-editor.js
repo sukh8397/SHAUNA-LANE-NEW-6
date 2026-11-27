@@ -406,6 +406,10 @@
     // C. Make Images Click-to-Replace & Drag-and-Drop
     const imageSelectors = [
       'img.editable',
+      'img.hero-photo',
+      '.photo-float img',
+      '.hero-visual img',
+      '.wc-polaroid img',
       '.charlie-photo-grid img',
       '.stage-grid img',
       '.content-card img',
