@@ -1,0 +1,45 @@
+media:
+  input: assets
+  output: assets
+
+content:
+  - name: pages
+    label: Website Pages
+    type: collection
+    path: ""
+    match: "*.html"
+
+  - name: home
+    label: Home Page (index.html)
+    type: file
+    path: index.html
+
+  - name: comedy
+    label: Comedy & Charlie (comedy.html)
+    type: file
+    path: comedy.html
+
+  - name: acting
+    label: Acting & Screen Work (acting.html)
+    type: file
+    path: acting.html
+
+  - name: tutoring
+    label: Terra Cotta Tutoring (tutoring.html)
+    type: file
+    path: tutoring.html
+
+  - name: about
+    label: About Shauna (about.html)
+    type: file
+    path: about.html
+
+  - name: contact
+    label: Contact & Bookings (contact.html)
+    type: file
+    path: contact.html
+
+  - name: podcast
+    label: Podcast Page (podcast.html)
+    type: file
+    path: podcast.html
