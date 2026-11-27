@@ -1,23 +1,29 @@
 /**
- * Shauna Lane — In-Page Visual Editor & Magic Toolbar (Security & OTP Edition)
- * Features:
- * - 4-digit PIN login with Rate-Limiting & Anti-Brute-Force
- * - Email OTP (One-Time Password) Login directly to shaunalaneproductions@gmail.com
- * - Reset PIN via Email Verification
- * - Change PIN anytime in Settings
- * - Drag-and-drop & 1-click photo replacement across all site images
- * - Visual inline text typing (Microsoft Word style)
+ * Shauna Lane — In-Page Visual Editor & Magic Toolbar (Multi-Page & Real-Time OTP Edition)
+ * Supports:
+ * - Persistent Edit Mode across all pages (Home, Comedy, Acting, Tutoring, About, Podcast, Contact)
+ * - Quick Page Switcher directly on the Floating Admin Bar
+ * - Dual Administrator login: Shauna (shaunalaneproductions@gmail.com) & Sukh (sukhhari01@gmail.com)
+ * - Both PIN and Real-Time Email OTP login modes
+ * - Email-based PIN Reset
+ * - Drag-and-drop & 1-click photo replacement on all images
+ * - Live in-page text editing (Microsoft Word style)
  * - 1-Click "Publish Live" to GitHub + Cloudflare
  */
 (() => {
   const isEditRequested = window.location.search.includes('edit=1') || window.location.pathname === '/admin';
-  const hasActiveSession = localStorage.getItem('sl_admin_session') === 'active';
+  const hasActiveSession = localStorage.getItem('sl_admin_session') === 'active' || document.cookie.includes('sl_admin_session=active');
 
   if (!isEditRequested && !hasActiveSession) return;
 
   // Configuration state
   let currentPin = localStorage.getItem('sl_custom_pin') || '2026';
   let githubToken = localStorage.getItem('sl_github_token') || '';
+  let resendApiKey = localStorage.getItem('sl_resend_key') || '';
+  let currentAdminEmail = localStorage.getItem('sl_admin_email') || 'shaunalaneproductions@gmail.com';
+  let latestDevCode = '';
+  let latestDeliveryMsg = '';
+  const ALLOWED_ADMINS = ['shaunalaneproductions@gmail.com', 'sukhhari01@gmail.com'];
   let pendingChanges = 0;
   const pendingImages = []; // { filename, base64, element }
 
@@ -32,20 +38,23 @@
       left: 50%;
       transform: translateX(-50%);
       z-index: 2147483647;
-      background: rgba(24, 21, 18, 0.95);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(24, 21, 18, 0.96);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.22);
       border-radius: 999px;
       padding: 8px 18px;
       display: flex;
       align-items: center;
-      gap: 16px;
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+      gap: 14px;
+      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.5);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       color: #fff;
       font-size: 13px;
       animation: slSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 95vw;
+      flex-wrap: wrap;
+      justify-content: center;
     }
     @keyframes slSlideUp {
       from { transform: translate(-50%, 40px); opacity: 0; }
@@ -57,6 +66,7 @@
       gap: 8px;
       font-weight: 700;
       letter-spacing: 0.02em;
+      white-space: nowrap;
     }
     .sl-admin-dot {
       width: 10px;
@@ -70,12 +80,28 @@
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.6; transform: scale(1.15); }
     }
+    .sl-admin-page-select {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+    .sl-admin-page-select option {
+      background: #181512;
+      color: #fff;
+    }
     .sl-admin-counter {
       color: rgba(255, 255, 255, 0.7);
       font-size: 12px;
       background: rgba(255, 255, 255, 0.1);
       padding: 4px 10px;
       border-radius: 999px;
+      white-space: nowrap;
     }
     .sl-admin-counter.has-changes {
       background: rgba(255, 110, 180, 0.25);
@@ -100,6 +126,7 @@
       align-items: center;
       gap: 6px;
       text-decoration: none;
+      white-space: nowrap;
     }
     .sl-admin-btn-publish {
       background: linear-gradient(135deg, #00d26a 0%, #00a854 100%);
@@ -203,7 +230,7 @@
       border-radius: 18px;
       padding: 32px 36px;
       width: 100%;
-      max-width: 420px;
+      max-width: 440px;
       box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
       text-align: center;
       color: #181512;
@@ -216,7 +243,7 @@
     .sl-modal-dialog p {
       font-size: 13px;
       color: #6e5a4e;
-      margin: 0 0 20px;
+      margin: 0 0 18px;
       line-height: 1.5;
     }
     .sl-modal-input {
@@ -225,9 +252,8 @@
       padding: 12px 16px;
       border-radius: 10px;
       border: 1px solid #c2b09f;
-      font-size: 16px;
-      text-align: center;
-      margin-bottom: 14px;
+      font-size: 15px;
+      margin-bottom: 12px;
       font-family: inherit;
       outline: none;
       background: #fff;
@@ -235,10 +261,33 @@
     .sl-modal-input.pin-style {
       font-size: 20px;
       letter-spacing: 0.25em;
+      text-align: center;
     }
     .sl-modal-input:focus {
       border-color: #ff6eb4;
       box-shadow: 0 0 0 3px rgba(255, 110, 180, 0.2);
+    }
+    .sl-email-pills {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .sl-email-pill {
+      flex: 1;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid #c2b09f;
+      background: rgba(255, 255, 255, 0.5);
+      font-size: 12px;
+      font-weight: 700;
+      color: #6e5a4e;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .sl-email-pill.active {
+      background: #181512;
+      color: #fff;
+      border-color: #181512;
     }
     .sl-modal-btn {
       width: 100%;
@@ -286,8 +335,9 @@
       margin: 8px 0;
       display: none;
       background: #e6f7ee;
-      padding: 6px 12px;
+      padding: 8px 12px;
       border-radius: 6px;
+      line-height: 1.4;
     }
 
     /* Notification Toast */
@@ -342,69 +392,87 @@
     return p.replace(/^\//, '') || 'index.html';
   };
 
-  // 2. MULTI-FACTOR AUTHENTICATION MODAL (PIN, EMAIL OTP, RESET PIN)
+  // Helper: Persist Session across all subdomains and paths
+  const persistSession = () => {
+    localStorage.setItem('sl_admin_session', 'active');
+    document.cookie = 'sl_admin_session=active; path=/; max-age=604800; SameSite=Lax';
+  };
+
+  // 2. MULTI-FACTOR AUTHENTICATION MODAL (EMAIL INPUT, PIN, OTP, RESET)
   const promptSecurityModal = () => {
     return new Promise((resolve) => {
       const modal = document.createElement('div');
       modal.className = 'sl-modal-overlay';
       modal.id = 'slSecurityModal';
 
-      // Current view mode: 'pin', 'otp', 'reset'
-      let currentMode = 'pin';
+      let currentMode = 'login'; // 'login', 'otp_entry', 'reset'
 
       const renderView = () => {
-        if (currentMode === 'pin') {
+        if (currentMode === 'login') {
           modal.innerHTML = `
             <div class="sl-modal-dialog">
               <div style="font-size:36px;margin-bottom:8px">👋</div>
-              <h3>Welcome Shauna</h3>
-              <p>Enter your 4-digit PIN to edit text and photos directly on your website:</p>
-              <input type="password" maxlength="8" class="sl-modal-input pin-style" id="slPinInput" placeholder="••••" autofocus>
-              <button class="sl-modal-btn" id="slPinSubmit">Unlock Editor ↗</button>
-              <div class="sl-modal-error" id="slErrorBox"></div>
-              <div style="margin-top:12px;display:flex;flex-direction:column;gap:4px">
-                <button type="button" class="sl-modal-btn-subtle" id="slSwitchOtp">✉️ Login with Email &amp; OTP code</button>
-                <button type="button" class="sl-modal-btn-subtle" id="slSwitchReset">🔑 Forgot PIN? Reset via Email</button>
-              </div>
-              <div style="margin-top:16px;font-size:11px;color:#8a7667">Protected for <strong>shaunalaneproductions@gmail.com</strong></div>
-            </div>
-          `;
-          attachPinHandlers();
-        } else if (currentMode === 'otp') {
-          modal.innerHTML = `
-            <div class="sl-modal-dialog">
-              <div style="font-size:36px;margin-bottom:8px">✉️</div>
-              <h3>Email &amp; OTP Login</h3>
-              <p>We'll send a 6-digit secure login code directly to your email:</p>
-              <input type="email" class="sl-modal-input" id="slEmailInput" value="shaunalaneproductions@gmail.com" placeholder="your@email.com">
-              <button class="sl-modal-btn" id="slSendOtpBtn">Send 6-Digit Code ↗</button>
+              <h3>Website Editor Login</h3>
+              <p>Select your administrator account or type your email to enter:</p>
               
-              <div id="slOtpInputSection" style="display:none;margin-top:14px">
-                <p style="margin-bottom:8px">Enter the 6-digit code sent to your inbox:</p>
-                <input type="text" maxlength="6" class="sl-modal-input pin-style" id="slOtpInput" placeholder="••••••">
-                <button class="sl-modal-btn" id="slVerifyOtpBtn">Verify &amp; Unlock Editor ↗</button>
+              <div class="sl-email-pills">
+                <button type="button" class="sl-email-pill ${currentAdminEmail.includes('shauna') ? 'active' : ''}" data-email="shaunalaneproductions@gmail.com">Shauna Lane</button>
+                <button type="button" class="sl-email-pill ${currentAdminEmail.includes('sukh') ? 'active' : ''}" data-email="sukhhari01@gmail.com">Sukh (Dev)</button>
               </div>
 
+              <input type="email" class="sl-modal-input" id="slEmailField" value="${currentAdminEmail}" placeholder="admin@email.com">
+              <input type="password" maxlength="8" class="sl-modal-input pin-style" id="slPinInput" placeholder="PIN (e.g. ••••)" autofocus>
+              
+              <button class="sl-modal-btn" id="slPinSubmit">Unlock Editor ↗</button>
+              <button class="sl-modal-btn" id="slRequestOtpBtn" style="background:#2a2420">✉️ Send 6-Digit Login Code to Email</button>
+              
               <div class="sl-modal-error" id="slErrorBox"></div>
               <div class="sl-modal-success" id="slSuccessBox"></div>
 
-              <div style="margin-top:12px">
-                <button type="button" class="sl-modal-btn-subtle" id="slSwitchPin">← Back to PIN Login</button>
+              <div style="margin-top:10px">
+                <button type="button" class="sl-modal-btn-subtle" id="slSwitchReset">🔑 Forgot PIN? Reset via Email</button>
               </div>
             </div>
           `;
-          attachOtpHandlers();
+          attachLoginHandlers();
+        } else if (currentMode === 'otp_entry') {
+          modal.innerHTML = `
+            <div class="sl-modal-dialog">
+              <div style="font-size:36px;margin-bottom:8px">✉️</div>
+              <h3>Enter Security Code</h3>
+              <p>We've sent a 6-digit login code to <strong>${currentAdminEmail}</strong>:</p>
+              
+              <input type="text" maxlength="6" class="sl-modal-input pin-style" id="slOtpInput" placeholder="••••••" autofocus>
+              <button class="sl-modal-btn" id="slVerifyOtpBtn">Verify &amp; Unlock Editor ↗</button>
+
+              <div class="sl-modal-error" id="slErrorBox"></div>
+              <div class="sl-modal-success" id="slSuccessBox" style="display:block">
+                ${latestDevCode ? `Security code generated! (Dev preview: <strong>${latestDevCode}</strong>)` : `Code dispatched to <strong>${currentAdminEmail}</strong>. Check inbox/spam.`}
+              </div>
+
+              <div style="margin-top:12px">
+                <button type="button" class="sl-modal-btn-subtle" id="slBackToLogin">← Back to Login</button>
+              </div>
+            </div>
+          `;
+          attachOtpEntryHandlers();
         } else if (currentMode === 'reset') {
           modal.innerHTML = `
             <div class="sl-modal-dialog">
               <div style="font-size:36px;margin-bottom:8px">🔑</div>
               <h3>Reset Your PIN</h3>
               <p>Verify your email to create a new 4-digit PIN:</p>
-              <input type="email" class="sl-modal-input" id="slEmailInput" value="shaunalaneproductions@gmail.com" placeholder="your@email.com">
+              
+              <div class="sl-email-pills">
+                <button type="button" class="sl-email-pill ${currentAdminEmail.includes('shauna') ? 'active' : ''}" data-email="shaunalaneproductions@gmail.com">Shauna</button>
+                <button type="button" class="sl-email-pill ${currentAdminEmail.includes('sukh') ? 'active' : ''}" data-email="sukhhari01@gmail.com">Sukh (Dev)</button>
+              </div>
+
+              <input type="email" class="sl-modal-input" id="slResetEmailInput" value="${currentAdminEmail}">
               <button class="sl-modal-btn" id="slSendResetOtpBtn">Send Verification Code ↗</button>
 
               <div id="slResetSection" style="display:none;margin-top:14px">
-                <p style="margin-bottom:6px">Enter verification code:</p>
+                <p style="margin-bottom:6px">Enter 6-digit verification code:</p>
                 <input type="text" maxlength="6" class="sl-modal-input pin-style" id="slResetOtpInput" placeholder="••••••">
                 <p style="margin-bottom:6px">Choose your new 4-digit PIN:</p>
                 <input type="password" maxlength="8" class="sl-modal-input pin-style" id="slNewPinInput" placeholder="••••">
@@ -415,7 +483,7 @@
               <div class="sl-modal-success" id="slSuccessBox"></div>
 
               <div style="margin-top:12px">
-                <button type="button" class="sl-modal-btn-subtle" id="slSwitchPin">← Back to PIN Login</button>
+                <button type="button" class="sl-modal-btn-subtle" id="slBackToLogin">← Back to Login</button>
               </div>
             </div>
           `;
@@ -423,79 +491,111 @@
         }
       };
 
-      // Handlers: PIN
-      const attachPinHandlers = () => {
-        const input = modal.querySelector('#slPinInput');
-        const submit = modal.querySelector('#slPinSubmit');
-        const error = modal.querySelector('#slErrorBox');
+      // Handlers: Login Screen
+      const attachLoginHandlers = () => {
+        const emailField = modal.querySelector('#slEmailField');
+        const pinInput = modal.querySelector('#slPinInput');
+        const pinSubmit = modal.querySelector('#slPinSubmit');
+        const otpBtn = modal.querySelector('#slRequestOtpBtn');
+        const errorBox = modal.querySelector('#slErrorBox');
 
-        const verify = async () => {
-          const pin = input.value.trim();
+        modal.querySelectorAll('.sl-email-pill').forEach(pill => {
+          pill.addEventListener('click', () => {
+            modal.querySelectorAll('.sl-email-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            emailField.value = pill.getAttribute('data-email');
+            currentAdminEmail = emailField.value;
+            localStorage.setItem('sl_admin_email', currentAdminEmail);
+          });
+        });
+
+        emailField.addEventListener('input', () => {
+          currentAdminEmail = emailField.value.trim();
+          localStorage.setItem('sl_admin_email', currentAdminEmail);
+        });
+
+        // PIN Login
+        const verifyPin = async () => {
+          const pin = pinInput.value.trim();
+          const email = emailField.value.trim().toLowerCase();
           const savedCustom = localStorage.getItem('sl_custom_pin') || '2026';
+
+          if (!ALLOWED_ADMINS.includes(email)) {
+            errorBox.textContent = 'This email is not authorized as an administrator for this website.';
+            errorBox.style.display = 'block';
+            return;
+          }
+
           if (pin === savedCustom || pin === '2026') {
-            localStorage.setItem('sl_admin_session', 'active');
+            persistSession();
             localStorage.setItem('sl_admin_pin', pin);
             currentPin = pin;
             modal.remove();
             resolve(true);
           } else {
-            error.textContent = 'Incorrect PIN. Try again or login via Email & OTP.';
-            error.style.display = 'block';
-            input.value = '';
-            input.focus();
+            errorBox.textContent = 'Incorrect PIN. Try again or click "Send 6-Digit Code" to login via email.';
+            errorBox.style.display = 'block';
+            pinInput.value = '';
+            pinInput.focus();
           }
         };
 
-        submit.addEventListener('click', verify);
-        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') verify(); });
-        modal.querySelector('#slSwitchOtp').addEventListener('click', () => { currentMode = 'otp'; renderView(); });
-        modal.querySelector('#slSwitchReset').addEventListener('click', () => { currentMode = 'reset'; renderView(); });
-      };
+        pinSubmit.addEventListener('click', verifyPin);
+        pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') verifyPin(); });
 
-      // Handlers: Email OTP
-      const attachOtpHandlers = () => {
-        const emailInput = modal.querySelector('#slEmailInput');
-        const sendBtn = modal.querySelector('#slSendOtpBtn');
-        const otpSection = modal.querySelector('#slOtpInputSection');
-        const otpInput = modal.querySelector('#slOtpInput');
-        const verifyBtn = modal.querySelector('#slVerifyOtpBtn');
-        const errorBox = modal.querySelector('#slErrorBox');
-        const successBox = modal.querySelector('#slSuccessBox');
+        // Request OTP
+        otpBtn.addEventListener('click', async () => {
+          const email = emailField.value.trim().toLowerCase();
+          if (!ALLOWED_ADMINS.includes(email)) {
+            errorBox.textContent = 'This email is not authorized as an administrator for this website.';
+            errorBox.style.display = 'block';
+            return;
+          }
 
-        sendBtn.addEventListener('click', async () => {
-          sendBtn.disabled = true;
-          sendBtn.textContent = 'Sending code...';
+          otpBtn.disabled = true;
+          otpBtn.textContent = 'Sending code...';
           errorBox.style.display = 'none';
 
           try {
             const res = await fetch('/api/admin/send-otp', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: emailInput.value.trim(), purpose: 'login' })
+              body: JSON.stringify({ email: email, purpose: 'login', apiKey: resendApiKey })
             });
             const data = await res.json();
             if (data.success) {
-              successBox.textContent = data.message || '6-digit code sent to your email!';
-              successBox.style.display = 'block';
-              otpSection.style.display = 'block';
-              sendBtn.style.display = 'none';
-              emailInput.disabled = true;
-              otpInput.focus();
+              currentAdminEmail = email;
+              latestDevCode = data.codeForDev || '';
+              latestDeliveryMsg = data.message || '';
+              currentMode = 'otp_entry';
+              renderView();
             } else {
               errorBox.textContent = data.error || 'Failed to send OTP.';
               errorBox.style.display = 'block';
-              sendBtn.disabled = false;
-              sendBtn.textContent = 'Send 6-Digit Code ↗';
+              otpBtn.disabled = false;
+              otpBtn.textContent = '✉️ Send 6-Digit Login Code to Email';
             }
           } catch (e) {
             errorBox.textContent = 'Network error: ' + e.message;
             errorBox.style.display = 'block';
-            sendBtn.disabled = false;
-            sendBtn.textContent = 'Send 6-Digit Code ↗';
+            otpBtn.disabled = false;
+            otpBtn.textContent = '✉️ Send 6-Digit Login Code to Email';
           }
         });
 
-        verifyBtn.addEventListener('click', async () => {
+        modal.querySelector('#slSwitchReset').addEventListener('click', () => {
+          currentMode = 'reset';
+          renderView();
+        });
+      };
+
+      // Handlers: OTP Entry Screen
+      const attachOtpEntryHandlers = () => {
+        const otpInput = modal.querySelector('#slOtpInput');
+        const verifyBtn = modal.querySelector('#slVerifyOtpBtn');
+        const errorBox = modal.querySelector('#slErrorBox');
+
+        const doVerifyOtp = async () => {
           verifyBtn.disabled = true;
           verifyBtn.textContent = 'Verifying...';
           errorBox.style.display = 'none';
@@ -504,15 +604,15 @@
             const res = await fetch('/api/admin/verify-otp', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: emailInput.value.trim(), code: otpInput.value.trim() })
+              body: JSON.stringify({ email: currentAdminEmail, code: otpInput.value.trim() })
             });
             const data = await res.json();
             if (data.success) {
-              localStorage.setItem('sl_admin_session', 'active');
+              persistSession();
               modal.remove();
               resolve(true);
             } else {
-              errorBox.textContent = data.error || 'Invalid code. Try again.';
+              errorBox.textContent = data.error || 'Invalid code. Check your inbox and try again.';
               errorBox.style.display = 'block';
               verifyBtn.disabled = false;
               verifyBtn.textContent = 'Verify & Unlock Editor ↗';
@@ -523,14 +623,20 @@
             verifyBtn.disabled = false;
             verifyBtn.textContent = 'Verify & Unlock Editor ↗';
           }
-        });
+        };
 
-        modal.querySelector('#slSwitchPin').addEventListener('click', () => { currentMode = 'pin'; renderView(); });
+        verifyBtn.addEventListener('click', doVerifyOtp);
+        otpInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doVerifyOtp(); });
+
+        modal.querySelector('#slBackToLogin').addEventListener('click', () => {
+          currentMode = 'login';
+          renderView();
+        });
       };
 
-      // Handlers: Reset PIN
+      // Handlers: Reset PIN Screen
       const attachResetHandlers = () => {
-        const emailInput = modal.querySelector('#slEmailInput');
+        const emailInput = modal.querySelector('#slResetEmailInput');
         const sendBtn = modal.querySelector('#slSendResetOtpBtn');
         const resetSection = modal.querySelector('#slResetSection');
         const resetOtpInput = modal.querySelector('#slResetOtpInput');
@@ -539,20 +645,39 @@
         const errorBox = modal.querySelector('#slErrorBox');
         const successBox = modal.querySelector('#slSuccessBox');
 
+        modal.querySelectorAll('.sl-email-pill').forEach(pill => {
+          pill.addEventListener('click', () => {
+            modal.querySelectorAll('.sl-email-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            emailInput.value = pill.getAttribute('data-email');
+            currentAdminEmail = emailInput.value;
+          });
+        });
+
         sendBtn.addEventListener('click', async () => {
+          const email = emailInput.value.trim().toLowerCase();
+          if (!ALLOWED_ADMINS.includes(email)) {
+            errorBox.textContent = 'This email is not authorized as an administrator for this website.';
+            errorBox.style.display = 'block';
+            return;
+          }
+
           sendBtn.disabled = true;
-          sendBtn.textContent = 'Sending verification code...';
+          sendBtn.textContent = 'Sending code...';
           errorBox.style.display = 'none';
 
           try {
             const res = await fetch('/api/admin/send-otp', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: emailInput.value.trim(), purpose: 'reset' })
+              body: JSON.stringify({ email: email, purpose: 'reset', apiKey: resendApiKey })
             });
             const data = await res.json();
             if (data.success) {
-              successBox.textContent = 'Verification code sent to your email!';
+              latestDevCode = data.codeForDev || '';
+              successBox.innerHTML = latestDevCode 
+                ? `Verification code generated! (Dev preview: <strong>${latestDevCode}</strong>)` 
+                : `Verification code sent to <strong>${emailInput.value}</strong>! Check your inbox.`;
               successBox.style.display = 'block';
               resetSection.style.display = 'block';
               sendBtn.style.display = 'none';
@@ -572,7 +697,7 @@
           }
         });
 
-        savePinBtn.addEventListener('click', async () => {
+        const doSaveNewPin = async () => {
           const newPin = newPinInput.value.trim();
           if (newPin.length < 4) {
             errorBox.textContent = 'PIN must be at least 4 digits.';
@@ -589,7 +714,7 @@
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                email: emailInput.value.trim(),
+                email: emailInput.value.trim().toLowerCase(),
                 code: resetOtpInput.value.trim(),
                 newPin: newPin
               })
@@ -597,7 +722,7 @@
             const data = await res.json();
             if (data.success) {
               localStorage.setItem('sl_custom_pin', newPin);
-              localStorage.setItem('sl_admin_session', 'active');
+              persistSession();
               localStorage.setItem('sl_admin_pin', newPin);
               currentPin = newPin;
               modal.remove();
@@ -615,9 +740,15 @@
             savePinBtn.disabled = false;
             savePinBtn.textContent = 'Save New PIN & Login ↗';
           }
-        });
+        };
 
-        modal.querySelector('#slSwitchPin').addEventListener('click', () => { currentMode = 'pin'; renderView(); });
+        savePinBtn.addEventListener('click', doSaveNewPin);
+        newPinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSaveNewPin(); });
+
+        modal.querySelector('#slBackToLogin').addEventListener('click', () => {
+          currentMode = 'login';
+          renderView();
+        });
       };
 
       document.body.appendChild(modal);
@@ -625,9 +756,22 @@
     });
   };
 
-  // 3. INITIALIZE IN-PAGE EDITING
+  // 3. INITIALIZE IN-PAGE EDITING (MULTI-PAGE ENABLED)
   const initEditor = () => {
-    // A. Inject Magic Floating Toolbar
+    persistSession();
+
+    // A. Intercept All Internal Links so Edit Mode Persists Seamlessly Across Pages!
+    document.querySelectorAll('a[href]').forEach(a => {
+      const href = a.getAttribute('href');
+      if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto:') && !href.startsWith('tel:')) {
+        if (!href.includes('edit=1')) {
+          a.href = href + (href.includes('?') ? '&' : '?') + 'edit=1';
+        }
+      }
+    });
+
+    // B. Inject Magic Floating Toolbar with Built-In Page Switcher
+    const currentPath = getCurrentPagePath();
     const bar = document.createElement('div');
     bar.id = 'slAdminBar';
     bar.className = 'sl-admin-bar';
@@ -636,7 +780,20 @@
         <span class="sl-admin-dot"></span>
         <span>Edit Mode Active</span>
       </div>
+      
+      <!-- Quick Page Switcher -->
+      <select class="sl-admin-page-select" id="slPageSelect" title="Jump to Page">
+        <option value="index.html" ${currentPath.includes('index') ? 'selected' : ''}>📄 Home</option>
+        <option value="comedy.html" ${currentPath.includes('comedy') ? 'selected' : ''}>🎭 Comedy &amp; Charlie</option>
+        <option value="acting.html" ${currentPath.includes('acting') ? 'selected' : ''}>🎬 Acting &amp; Screen</option>
+        <option value="tutoring.html" ${currentPath.includes('tutoring') ? 'selected' : ''}>📚 Terra Cotta Tutoring</option>
+        <option value="about.html" ${currentPath.includes('about') ? 'selected' : ''}>👤 About</option>
+        <option value="podcast.html" ${currentPath.includes('podcast') ? 'selected' : ''}>🎙️ Podcast</option>
+        <option value="contact.html" ${currentPath.includes('contact') ? 'selected' : ''}>✉️ Contact</option>
+      </select>
+
       <div class="sl-admin-counter" id="slAdminCounter">0 changes pending</div>
+      
       <div class="sl-admin-actions">
         <button id="slAdminPublishBtn" class="sl-admin-btn sl-admin-btn-publish">💾 Publish Live</button>
         <button id="slAdminSettingsBtn" class="sl-admin-btn sl-admin-btn-settings" title="Change PIN &amp; Settings">⚙️ Settings</button>
@@ -644,6 +801,15 @@
       </div>
     `;
     document.body.appendChild(bar);
+
+    // Page Switcher Navigation
+    document.getElementById('slPageSelect').addEventListener('change', (e) => {
+      const target = e.target.value;
+      if (pendingChanges > 0) {
+        if (!confirm('You have unsaved changes on this page. Navigate to another page anyway?')) return;
+      }
+      window.location.href = '/' + target + '?edit=1';
+    });
 
     const counterEl = document.getElementById('slAdminCounter');
     const publishBtn = document.getElementById('slAdminPublishBtn');
@@ -659,7 +825,7 @@
       }
     };
 
-    // B. Make Text Elements In-Page Editable
+    // C. Make Text Elements In-Page Editable
     const textSelectors = [
       '.editable',
       'h1:not(.no-edit)', 'h2:not(.no-edit)', 'h3:not(.no-edit)',
@@ -680,7 +846,7 @@
       });
     });
 
-    // C. Make All Site Images Click-to-Replace & Drag-and-Drop
+    // D. Make All Site Images Click-to-Replace & Drag-and-Drop
     const imageSelectors = [
       'main img',
       'section img',
@@ -771,7 +937,7 @@
       });
     });
 
-    // D. Settings & Change PIN Modal
+    // E. Settings Modal (Change PIN & Real-time Email Key)
     settingsBtn.addEventListener('click', () => {
       const modal = document.createElement('div');
       modal.className = 'sl-modal-overlay';
@@ -785,11 +951,18 @@
             <button class="sl-modal-btn" id="slSavePinBtn" style="padding:8px">Update PIN</button>
           </div>
 
-          <div style="text-align:left;margin-top:14px">
+          <div style="text-align:left;margin-top:14px;border-bottom:1px solid #d4c2b2;padding-bottom:14px">
             <label style="font-size:12px;font-weight:700">GitHub Auto-Deploy Token (Optional):</label>
-            <p style="font-size:11px;color:#6e5a4e;margin:4px 0 8px">Allows 1-click live publishing to GitHub and Cloudflare:</p>
+            <p style="font-size:11px;color:#6e5a4e;margin:4px 0 8px">Allows 1-click live publishing to GitHub repository:</p>
             <input type="password" class="sl-modal-input" id="slTokenInput" placeholder="ghp_xxxxxxxxxxxx" value="${githubToken}" style="font-size:12px;letter-spacing:normal;text-align:left">
             <button class="sl-modal-btn" id="slTokenSave" style="padding:8px">Save GitHub Token</button>
+          </div>
+
+          <div style="text-align:left;margin-top:14px">
+            <label style="font-size:12px;font-weight:700">Resend Email API Key (Optional):</label>
+            <p style="font-size:11px;color:#6e5a4e;margin:4px 0 8px">Enables live real-time email OTP delivery to Gmail inboxes:</p>
+            <input type="password" class="sl-modal-input" id="slResendInput" placeholder="re_xxxxxxxxxxxx" value="${resendApiKey}" style="font-size:12px;letter-spacing:normal;text-align:left">
+            <button class="sl-modal-btn" id="slResendSave" style="padding:8px">Save Email Key</button>
           </div>
 
           <button class="sl-modal-btn-subtle" id="slModalClose" style="margin-top:14px">Close</button>
@@ -814,23 +987,32 @@
         localStorage.setItem('sl_github_token', val);
         githubToken = val;
         modal.remove();
-        showToast('⚙️ Token settings saved.');
+        showToast('⚙️ GitHub Token saved.');
+      });
+
+      modal.querySelector('#slResendSave').addEventListener('click', () => {
+        const val = modal.querySelector('#slResendInput').value.trim();
+        localStorage.setItem('sl_resend_key', val);
+        resendApiKey = val;
+        modal.remove();
+        showToast('⚙️ Email Service Key saved.');
       });
 
       modal.querySelector('#slModalClose').addEventListener('click', () => modal.remove());
     });
 
-    // E. Exit Edit Mode
+    // F. Exit Edit Mode
     exitBtn.addEventListener('click', () => {
       if (pendingChanges > 0) {
         if (!confirm('You have unsaved changes. Exit without saving?')) return;
       }
       localStorage.removeItem('sl_admin_session');
+      document.cookie = 'sl_admin_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       const cleanUrl = window.location.href.replace(/[?&]edit=1/, '').replace(/\/admin$/, '/');
       window.location.href = cleanUrl;
     });
 
-    // F. PUBLISH CHANGES
+    // G. PUBLISH CHANGES
     publishBtn.addEventListener('click', async () => {
       publishBtn.disabled = true;
       publishBtn.innerHTML = '⏳ Publishing...';
