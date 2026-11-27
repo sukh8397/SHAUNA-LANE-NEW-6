@@ -9,7 +9,7 @@
       "path": "",
       "glob": "*.html",
       "icon": "article",
-      "url": "/[slug].html",
+      "url": "/[path]",
       "_enabled_editors": [
         "visual",
         "content"
