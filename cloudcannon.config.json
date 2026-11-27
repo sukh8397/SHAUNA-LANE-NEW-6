@@ -1,0 +1,27 @@
+{
+  "$schema": "https://cloudcannon.com/schema/cloudcannon.config.json",
+  "paths": {
+    "uploads": "assets"
+  },
+  "collections_config": {
+    "pages": {
+      "name": "Pages",
+      "path": "",
+      "glob": "*.html",
+      "icon": "article",
+      "url": "/[slug].html",
+      "_enabled_editors": [
+        "visual",
+        "content"
+      ]
+    }
+  },
+  "_inputs": {
+    "image": {
+      "type": "image",
+      "options": {
+        "uploads": "assets"
+      }
+    }
+  }
+}
