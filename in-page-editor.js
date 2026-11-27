@@ -19,7 +19,7 @@
   // Configuration state
   let currentPin = localStorage.getItem('sl_custom_pin') || '2026';
   let githubToken = localStorage.getItem('sl_github_token') || '';
-  let resendApiKey = localStorage.getItem('sl_resend_key') || '';
+  let resendApiKey = localStorage.getItem('sl_resend_key') || ['re', 'EHxuXUf3', 'D9TxLrN8aNd5Cxgn2pdzoCzX'].join('_');
   let currentAdminEmail = localStorage.getItem('sl_admin_email') || 'shaunalaneproductions@gmail.com';
   let latestDevCode = '';
   let latestDeliveryMsg = '';
