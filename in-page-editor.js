@@ -405,17 +405,16 @@
 
     // C. Make Images Click-to-Replace & Drag-and-Drop
     const imageSelectors = [
-      'img.editable',
+      'main img',
+      'section img',
+      'figure img',
+      '.wc-container img',
+      '.wc-bio-polaroid img',
+      '.wc-hero-center img',
+      '.wc-polaroid img',
       'img.hero-photo',
       '.photo-float img',
-      '.hero-visual img',
-      '.wc-polaroid img',
-      '.charlie-photo-grid img',
-      '.stage-grid img',
-      '.content-card img',
-      '.wc-center-portrait-frame img',
-      '.wc-thumb-item img',
-      '.page-hero img'
+      'img.editable'
     ];
 
     const fileInput = document.createElement('input');
