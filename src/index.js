@@ -64,25 +64,49 @@ export default {
         otpStore.set(email, { code, expires: Date.now() + 10 * 60 * 1000 }); // 10 minutes expiry
 
         // Send via Resend or Email API if configured
-        if (env.RESEND_API_KEY) {
-          await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${env.RESEND_API_KEY}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              from: "Shauna Lane Website <security@shaunalane.com>",
-              to: email,
-              subject: "Your Shauna Lane Website Login Code",
-              html: `<p>Hi Shauna,</p><p>Your 6-digit security code to edit your website is:</p><h2 style="font-size:32px;letter-spacing:0.2em;color:#181512">${code}</h2><p>This code expires in 10 minutes.</p>`
-            })
-          });
+        const resendKey = (body.apiKey || env.RESEND_API_KEY || "").trim();
+        let deliveredViaEmail = false;
+        let deliveryError = null;
+
+        if (resendKey) {
+          try {
+            const resp = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${resendKey}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                from: "Shauna Lane Website <onboarding@resend.dev>",
+                to: email,
+                subject: `Your Shauna Lane Website Login Code: ${code}`,
+                html: `<div style="font-family:sans-serif;padding:24px;background:#FAF1E4;border-radius:12px;color:#181512">
+                  <h2 style="margin-top:0">Shauna Lane Website Admin</h2>
+                  <p>Here is your 6-digit security code to edit the website:</p>
+                  <div style="font-size:32px;font-weight:bold;letter-spacing:6px;color:#d35400;padding:12px 0">${code}</div>
+                  <p style="color:#666;font-size:13px">This code expires in 10 minutes. If you did not request this, you can safely ignore this email.</p>
+                </div>`
+              })
+            });
+            const resData = await resp.json().catch(() => ({}));
+            if (resp.ok) {
+              deliveredViaEmail = true;
+            } else {
+              deliveryError = resData.message || resp.statusText;
+            }
+          } catch (e) {
+            deliveryError = e.message;
+          }
         }
 
         return new Response(JSON.stringify({
           success: true,
-          message: `6-digit security code sent to ${email}!`
+          deliveredViaEmail: deliveredViaEmail,
+          deliveryError: deliveryError,
+          codeForDev: deliveredViaEmail ? undefined : code,
+          message: deliveredViaEmail
+            ? `6-digit security code successfully sent to ${email}!`
+            : `Security code generated for ${email}.`
         }), {
           headers: { "Content-Type": "application/json" }
         });
